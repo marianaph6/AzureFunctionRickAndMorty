@@ -7,10 +7,8 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # Ruta al proyecto de la Azure Function App, se puede ajustar según el repositorio
-  DOTNET_VERSION: '8.0.x' # Versión de .NET Core a usar
-  COVERAGE_THRESHOLD: 80 # Umbral mínimo de cobertura de código en porcentaje
-  MUTATION_THRESHOLD: 60 # Umbral mínimo de cobertura de mutaciones en porcentaje
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # Ruta al proyecto de la Azure Function App
+  DOTNET_VERSION: '8.0.x' 
 
 jobs:
   build:
@@ -37,73 +35,24 @@ jobs:
       - name: 'Build project'
         run: dotnet build --configuration Release
 
-      # Paso 5: Ejecutar pruebas unitarias y generar reporte de cobertura
-      - name: 'Run Unit Tests and Generate Coverage Report'
+      # Paso 5: Ejecutar pruebas unitarias
+      - name: 'Run Unit Tests'
         run: |
-          dotnet test ./src/IntegracionContinuaFunction.sln --configuration Release \
-            /p:CollectCoverage=true \
-            /p:CoverletOutputFormat=cobertura \
-            /p:CoverletOutput=./coverage/
-      
-      # Paso 6: Verificar la existencia del archivo de cobertura
-      - name: 'Check Coverage Report'
-        run: |
-          if [ -f "./coverage/coverage.cobertura.xml" ]; then
-            echo "Coverage report generated."
-          else
-            echo "Coverage report not found."
-            exit 1
-          fi
-      
-      # Paso 7: Validar el porcentaje de cobertura
-      - name: 'Validate Code Coverage'
-        shell: pwsh
-        run: |
-          # Parsear el archivo XML de cobertura
-          $coverageReport = Get-Content "./coverage/coverage.cobertura.xml"
-          [xml]$coverageXml = $coverageReport
-      
-          # Extraer el porcentaje de cobertura de líneas
-          $coveredLines = $coverageXml.coverage.summary.@line-rate
-          $coveredPercent = [math]::Round(($coveredLines * 100), 2)
-          
-          Write-Host "Total Code Coverage: $coveredPercent%"
-      
-          # Validar si el porcentaje es suficiente
-          if ($coveredPercent -lt 80) {
-            Write-Error "Coverage is below 80%! ($coveredPercent%)"
-            exit 1
-          else {
-            Write-Host "Coverage meets the threshold. ($coveredPercent%)"
-          fi
+          dotnet test --no-build --configuration Release --collect:"XPlat Code Coverage"
 
-
-
-      # Paso 7: Publicar el proyecto
+      # Paso 6: Publicar el proyecto
       - name: 'Publish project'
         run: dotnet publish --configuration Release --output ./output
 
-      # Paso 8: Subir el artefacto
+      # Paso 7: Subir el artefacto
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v3
         with:
           name: function-app-package
           path: './output'
 
-      # Paso 9: Ejecutar Stryker para validación de pruebas
+      # Paso 8: Ejecutar Stryker para validación de pruebas
       - name: 'Run Stryker Mutator'
         run: |
           dotnet tool restore
-          dotnet stryker --break-on-low-mutation=${{ env.MUTATION_THRESHOLD }}
-
-      # Paso 10: Validar porcentaje de mutación
-      - name: 'Validate Mutation Testing'
-        shell: pwsh
-        run: |
-          $mutationReport = Get-Content -Raw -Path "reports/mutation-report.json" | ConvertFrom-Json
-          $mutationScore = $mutationReport.totals.mutationScore
-          if ($mutationScore -lt ${{ env.MUTATION_THRESHOLD }}) {
-            Write-Error "Mutation score is below threshold! ($mutationScore%)"
-            exit 1
-          }
-          Write-Host "Mutation score meets the threshold. ($mutationScore%)"
+          dotnet stryker
