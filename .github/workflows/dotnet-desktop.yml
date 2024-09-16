@@ -37,36 +37,46 @@ jobs:
       - name: 'Build project'
         run: dotnet build --configuration Release
 
-# Paso 6: Ejecutar pruebas unitarias y generar reporte de cobertura
+      # Paso 6: Ejecutar pruebas unitarias y generar reporte de cobertura
       - name: 'Run Unit Tests and Generate Coverage Report'
         run: |
-          dotnet test --no-build --configuration Release /p:CollectCoverage=true /p:CoverletOutput=./coverage/ --p:CoverletOutputFormat=opencover
+          dotnet test --no-build --configuration Release \
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=cobertura \
+            /p:CoverletOutput=./coverage/
       
-      # Paso 7: Validar la cobertura de código
+      # Paso 7: Verificar la existencia del archivo de cobertura
+      - name: 'Check Coverage Report'
+        run: |
+          if [ -f "./coverage/coverage.cobertura.xml" ]; then
+            echo "Coverage report generated."
+          else
+            echo "Coverage report not found."
+            exit 1
+          fi
+      
+      # Paso 8: Validar el porcentaje de cobertura
       - name: 'Validate Code Coverage'
         shell: pwsh
         run: |
-          # Verificar si el archivo de cobertura existe
-          if (Test-Path "./coverage/coverage.opencover.xml") {
-              # Parsear el archivo de cobertura para extraer el porcentaje
-              $coverageReport = Get-Content "./coverage/coverage.opencover.xml"
-              [xml]$coverageXml = $coverageReport
-              
-              # Extraer el porcentaje de cobertura (ajusta esto según el formato del archivo XML)
-              $covered = [float]($coverageXml.CoverageSession.Summary.SequenceCoverage)
-              Write-Host "Code coverage: $covered%"
-              
-              # Validar si el porcentaje es suficiente
-              if ($covered -lt 80) {
-                  Write-Error "Coverage is below 80%! ($covered%)"
-                  exit 1
-              } else {
-                  Write-Host "Coverage meets the threshold. ($covered%)"
-              }
+          # Parsear el archivo XML de cobertura
+          $coverageReport = Get-Content "./coverage/coverage.cobertura.xml"
+          [xml]$coverageXml = $coverageReport
+      
+          # Extraer el porcentaje de cobertura de líneas
+          $coveredLines = $coverageXml.coverage.summary.@line-rate
+          $coveredPercent = [math]::Round(($coveredLines * 100), 2)
+          
+          Write-Host "Total Code Coverage: $coveredPercent%"
+      
+          # Validar si el porcentaje es suficiente
+          if ($coveredPercent -lt 80) {
+            Write-Error "Coverage is below 80%! ($coveredPercent%)"
+            exit 1
           } else {
-              Write-Error "Coverage report not found."
-              exit 1
-          }
+            Write-Host "Coverage meets the threshold. ($coveredPercent%)"
+          fi
+
 
       # Paso 7: Publicar el proyecto
       - name: 'Publish project'
