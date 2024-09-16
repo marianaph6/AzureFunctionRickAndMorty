@@ -1,0 +1,47 @@
+name: Build and deploy .NET Core Function App to Azure Function App - IntegracionContinuaFunction
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+env:
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # Ruta al proyecto de la Azure Function App, se puede ajustar según el repositorio
+  DOTNET_VERSION: '6.0.x' # Versión de .NET Core a usar
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      id-token: write # Requerido para solicitar el JWT
+
+    steps:
+      # Paso 1: Checkout del repositorio
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@v4
+
+      # Paso 2: Configuración del entorno de .NET Core
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # Paso 3: Restaurar las dependencias del proyecto
+      - name: 'Restore dependencies'
+        run: dotnet restore
+
+      # Paso 4: Compilar el proyecto
+      - name: 'Build project'
+        run: dotnet build --configuration Release
+
+      # Paso 5: Publicar el proyecto
+      - name: 'Publish project'
+        run: dotnet publish --configuration Release --output ./output
+
+      # Paso 6: Subir el artefacto
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v3
+        with:
+          name: function-app-package
+          path: './output'
