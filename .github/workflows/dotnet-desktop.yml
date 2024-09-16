@@ -54,6 +54,5 @@ jobs:
       - name: 'Run Stryker Mutator'
         run: |
           dotnet tool restore
-          cd src
           dotnet stryker
 
