@@ -9,6 +9,8 @@ on:
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # Ruta al proyecto de la Azure Function App, se puede ajustar según el repositorio
   DOTNET_VERSION: '8.0.x' # Versión de .NET Core a usar
+  COVERAGE_THRESHOLD: 80 # Umbral mínimo de cobertura de código en porcentaje
+  MUTATION_THRESHOLD: 60 # Umbral mínimo de cobertura de mutaciones en porcentaje
 
 jobs:
   build:
@@ -35,24 +37,44 @@ jobs:
       - name: 'Build project'
         run: dotnet build --configuration Release
 
-      # Paso 5: Ejecutar pruebas unitarias
-      - name: 'Run Unit Tests'
-        run: dotnet test --no-build --configuration Release
+      # Paso 5: Ejecutar pruebas unitarias con cobertura
+      - name: 'Run Unit Tests with Coverage'
+        run: |
+          dotnet test --no-build --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:Threshold=${{ env.COVERAGE_THRESHOLD }}
 
-      # Paso 6: Publicar el proyecto
+      # Paso 6: Validar cobertura de código
+      - name: 'Validate Code Coverage'
+        run: |
+          coverage=$(dotnet test --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura --logger "trx;LogFileName=coverage.trx" | grep "Total.*%" | grep -o '[0-9]*')
+          if [ $coverage -lt ${{ env.COVERAGE_THRESHOLD }} ]; then
+            echo "Coverage is below threshold!"
+            exit 1
+          fi
+          echo "Coverage meets the threshold."
+
+      # Paso 7: Publicar el proyecto
       - name: 'Publish project'
         run: dotnet publish --configuration Release --output ./output
 
-      # Paso 7: Subir el artefacto
+      # Paso 8: Subir el artefacto
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v3
         with:
           name: function-app-package
           path: './output'
 
-      # Paso 8: Ejecutar Stryker para validación de pruebas
+      # Paso 9: Ejecutar Stryker para validación de pruebas
       - name: 'Run Stryker Mutator'
         run: |
           dotnet tool restore
-          dotnet stryker
+          dotnet stryker --break-on-low-mutation=${{ env.MUTATION_THRESHOLD }}
 
+      # Paso 10: Validar porcentaje de mutación
+      - name: 'Validate Mutation Testing'
+        run: |
+          mutationScore=$(cat reports/mutation-report.json | jq '.totals.mutationScore')
+          if (( $(echo "$mutationScore < ${{ env.MUTATION_THRESHOLD }}" | bc -l) )); then
+            echo "Mutation score is below the threshold!"
+            exit 1
+          fi
+          echo "Mutation score meets the threshold."
