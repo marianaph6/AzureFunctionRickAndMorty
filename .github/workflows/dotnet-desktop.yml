@@ -37,15 +37,15 @@ jobs:
       - name: 'Build project'
         run: dotnet build --configuration Release
 
-      # Paso 6: Ejecutar pruebas unitarias y generar reporte de cobertura
+      # Paso 5: Ejecutar pruebas unitarias y generar reporte de cobertura
       - name: 'Run Unit Tests and Generate Coverage Report'
         run: |
-          dotnet test --no-build --configuration Release \
+          dotnet test ./src/IntegracionContinuaFunction.sln --configuration Release \
             /p:CollectCoverage=true \
             /p:CoverletOutputFormat=cobertura \
             /p:CoverletOutput=./coverage/
       
-      # Paso 7: Verificar la existencia del archivo de cobertura
+      # Paso 6: Verificar la existencia del archivo de cobertura
       - name: 'Check Coverage Report'
         run: |
           if [ -f "./coverage/coverage.cobertura.xml" ]; then
@@ -55,7 +55,7 @@ jobs:
             exit 1
           fi
       
-      # Paso 8: Validar el porcentaje de cobertura
+      # Paso 7: Validar el porcentaje de cobertura
       - name: 'Validate Code Coverage'
         shell: pwsh
         run: |
@@ -73,9 +73,10 @@ jobs:
           if ($coveredPercent -lt 80) {
             Write-Error "Coverage is below 80%! ($coveredPercent%)"
             exit 1
-          } else {
+          else {
             Write-Host "Coverage meets the threshold. ($coveredPercent%)"
           fi
+
 
 
       # Paso 7: Publicar el proyecto
