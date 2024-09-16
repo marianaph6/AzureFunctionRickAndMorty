@@ -8,7 +8,7 @@ on:
 
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # Ruta al proyecto de la Azure Function App, se puede ajustar según el repositorio
-  DOTNET_VERSION: '8.0.x' # Versión de .NET Core a usar
+  DOTNET_VERSION: '6.0.x' # Versión de .NET Core a usar
 
 jobs:
   build:
@@ -54,4 +54,6 @@ jobs:
       - name: 'Run Stryker Mutator'
         run: |
           dotnet tool restore
+          dotnet tool install --global dotnet-stryker --version 4.1.0
           dotnet stryker --project-file=src/IntegracionContinuaFunction.sln
+
