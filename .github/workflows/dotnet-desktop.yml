@@ -54,6 +54,6 @@ jobs:
       - name: 'Run Stryker Mutator'
         run: |
           dotnet tool restore
-          dotnet tool install --global dotnet-stryker --version 4.1.0
-          dotnet stryker --project-file=src/IntegracionContinuaFunction.sln
+          cd src
+          dotnet stryker
 
