@@ -35,13 +35,23 @@ jobs:
       - name: 'Build project'
         run: dotnet build --configuration Release
 
-      # Paso 5: Publicar el proyecto
+      # Paso 5: Ejecutar pruebas unitarias
+      - name: 'Run Unit Tests'
+        run: dotnet test --no-build --configuration Release
+
+      # Paso 6: Publicar el proyecto
       - name: 'Publish project'
         run: dotnet publish --configuration Release --output ./output
 
-      # Paso 6: Subir el artefacto
+      # Paso 7: Subir el artefacto
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v3
         with:
           name: function-app-package
           path: './output'
+
+      # Paso 8: Ejecutar Stryker para validación de pruebas
+      - name: 'Run Stryker Mutator'
+        run: |
+          dotnet tool restore
+          dotnet stryker --project-file=src/IntegracionContinuaFunction.sln
