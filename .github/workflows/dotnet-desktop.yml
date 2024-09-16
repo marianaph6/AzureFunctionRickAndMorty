@@ -37,36 +37,37 @@ jobs:
       - name: 'Build project'
         run: dotnet build --configuration Release
 
-      # Paso 5: Ejecutar pruebas unitarias con cobertura
-      - name: 'Run Unit Tests with Coverage'
+# Paso 6: Ejecutar pruebas unitarias y generar reporte de cobertura
+      - name: 'Run Unit Tests and Generate Coverage Report'
         run: |
-          dotnet test --no-build --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura --logger "trx;LogFileName=coverage.trx"
-
-      # Paso 6: Validar cobertura de código en PowerShell
+          dotnet test --no-build --configuration Release /p:CollectCoverage=true /p:CoverletOutput=./coverage/ --p:CoverletOutputFormat=opencover
+      
+      # Paso 7: Validar la cobertura de código
       - name: 'Validate Code Coverage'
         shell: pwsh
         run: |
-          # Ejecutar las pruebas y guardar la salida
-          $coverageOutput = dotnet test --no-build --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
-          Write-Host "Test Output: $coverageOutput"
-          
-          # Extraer el porcentaje de cobertura usando una expresión regular
-          if ($coverageOutput -match "Total.*?(\d+)\%") {
-              $coverage = $matches[1]
-              Write-Host "Coverage extracted: $coverage%"
+          # Verificar si el archivo de cobertura existe
+          if (Test-Path "./coverage/coverage.opencover.xml") {
+              # Parsear el archivo de cobertura para extraer el porcentaje
+              $coverageReport = Get-Content "./coverage/coverage.opencover.xml"
+              [xml]$coverageXml = $coverageReport
+              
+              # Extraer el porcentaje de cobertura (ajusta esto según el formato del archivo XML)
+              $covered = [float]($coverageXml.CoverageSession.Summary.SequenceCoverage)
+              Write-Host "Code coverage: $covered%"
               
               # Validar si el porcentaje es suficiente
-              if ($coverage -lt ${{ env.COVERAGE_THRESHOLD }}) {
-                  Write-Error "Coverage is below the threshold! ($coverage%)"
+              if ($covered -lt 80) {
+                  Write-Error "Coverage is below 80%! ($covered%)"
                   exit 1
               } else {
-                  Write-Host "Coverage meets the threshold. ($coverage%)"
+                  Write-Host "Coverage meets the threshold. ($covered%)"
               }
           } else {
-              Write-Error "Failed to extract code coverage from the output."
+              Write-Error "Coverage report not found."
               exit 1
           }
-          
+
       # Paso 7: Publicar el proyecto
       - name: 'Publish project'
         run: dotnet publish --configuration Release --output ./output
