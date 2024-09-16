@@ -46,14 +46,27 @@ jobs:
       - name: 'Validate Code Coverage'
         shell: pwsh
         run: |
+          # Ejecutar las pruebas y guardar la salida
           $coverageOutput = dotnet test --no-build --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
-          $coverage = ($coverageOutput -match "Total.*?(\d+)%") | Out-Null; $matches[1]
-          if ($coverage -lt ${{ env.COVERAGE_THRESHOLD }}) {
-            Write-Error "Coverage is below threshold! ($coverage%)"
-            exit 1
+          Write-Host "Test Output: $coverageOutput"
+          
+          # Extraer el porcentaje de cobertura usando una expresión regular
+          if ($coverageOutput -match "Total.*?(\d+)\%") {
+              $coverage = $matches[1]
+              Write-Host "Coverage extracted: $coverage%"
+              
+              # Validar si el porcentaje es suficiente
+              if ($coverage -lt ${{ env.COVERAGE_THRESHOLD }}) {
+                  Write-Error "Coverage is below the threshold! ($coverage%)"
+                  exit 1
+              } else {
+                  Write-Host "Coverage meets the threshold. ($coverage%)"
+              }
+          } else {
+              Write-Error "Failed to extract code coverage from the output."
+              exit 1
           }
-          Write-Host "Coverage meets the threshold. ($coverage%)"
-
+          
       # Paso 7: Publicar el proyecto
       - name: 'Publish project'
         run: dotnet publish --configuration Release --output ./output
