@@ -40,17 +40,19 @@ jobs:
       # Paso 5: Ejecutar pruebas unitarias con cobertura
       - name: 'Run Unit Tests with Coverage'
         run: |
-          dotnet test --no-build --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:Threshold=${{ env.COVERAGE_THRESHOLD }}
+          dotnet test --no-build --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura --logger "trx;LogFileName=coverage.trx"
 
-      # Paso 6: Validar cobertura de código
+      # Paso 6: Validar cobertura de código en PowerShell
       - name: 'Validate Code Coverage'
+        shell: pwsh
         run: |
-          coverage=$(dotnet test --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura --logger "trx;LogFileName=coverage.trx" | grep "Total.*%" | grep -o '[0-9]*')
-          if [ $coverage -lt ${{ env.COVERAGE_THRESHOLD }} ]; then
-            echo "Coverage is below threshold!"
+          $coverageOutput = dotnet test --no-build --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
+          $coverage = ($coverageOutput -match "Total.*?(\d+)%") | Out-Null; $matches[1]
+          if ($coverage -lt ${{ env.COVERAGE_THRESHOLD }}) {
+            Write-Error "Coverage is below threshold! ($coverage%)"
             exit 1
-          fi
-          echo "Coverage meets the threshold."
+          }
+          Write-Host "Coverage meets the threshold. ($coverage%)"
 
       # Paso 7: Publicar el proyecto
       - name: 'Publish project'
@@ -71,10 +73,12 @@ jobs:
 
       # Paso 10: Validar porcentaje de mutación
       - name: 'Validate Mutation Testing'
+        shell: pwsh
         run: |
-          mutationScore=$(cat reports/mutation-report.json | jq '.totals.mutationScore')
-          if (( $(echo "$mutationScore < ${{ env.MUTATION_THRESHOLD }}" | bc -l) )); then
-            echo "Mutation score is below the threshold!"
+          $mutationReport = Get-Content -Raw -Path "reports/mutation-report.json" | ConvertFrom-Json
+          $mutationScore = $mutationReport.totals.mutationScore
+          if ($mutationScore -lt ${{ env.MUTATION_THRESHOLD }}) {
+            Write-Error "Mutation score is below threshold! ($mutationScore%)"
             exit 1
-          fi
-          echo "Mutation score meets the threshold."
+          }
+          Write-Host "Mutation score meets the threshold. ($mutationScore%)"
