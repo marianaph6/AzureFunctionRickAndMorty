@@ -1,0 +1,91 @@
+name: Build and deploy Cobertura
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+env:
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # Ruta al proyecto de la Azure Function App
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      id-token: write # Requerido para solicitar el JWT
+
+    steps:
+      # Paso 1: Checkout del repositorio
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@v4
+
+      # Paso 2: Configuración del entorno de .NET Core
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # Paso 3: Restaurar las dependencias del proyecto
+      - name: 'Restore dependencies'
+        run: dotnet restore
+
+      # Paso 4: Compilar el proyecto
+      - name: 'Build project'
+        run: dotnet build --configuration Release
+
+      # Paso 5: Ejecutar pruebas unitarias y generar reporte de cobertura
+      - name: 'Run Unit Tests and Generate Coverage Report'
+        run: |
+          dotnet test ./src/IntegracionContinuaFunction.sln --no-build --configuration Release \
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=cobertura \
+            /p:CoverletOutput=./coverage/
+
+      # Paso 6: Verificar la existencia del archivo de cobertura
+      - name: 'Check Coverage Report'
+        run: |
+          if [ -f "./coverage/coverage.cobertura.xml" ]; then
+            echo "Coverage report generated."
+          else
+            echo "Coverage report not found."
+            exit 1
+          fi
+
+      # Paso 7: Validar el porcentaje de cobertura de código
+      - name: 'Validate Code Coverage'
+        shell: pwsh
+        run: |
+          $coverageReport = Get-Content "./coverage/coverage.cobertura.xml"
+          [xml]$coverageXml = $coverageReport
+
+          # Extraer el porcentaje de cobertura
+          $coveredLines = $coverageXml.coverage.summary.@line-rate
+          $coveredPercent = [math]::Round(($coveredLines * 100), 2)
+
+          Write-Host "Total Code Coverage: $coveredPercent%"
+
+          # Validar si el porcentaje es suficiente
+          if ($coveredPercent -lt 80) {
+            Write-Error "Coverage is below 80%! ($coveredPercent%)"
+            exit 1
+          else
+            Write-Host "Coverage meets the threshold. ($coveredPercent%)"
+
+      # Paso 8: Ejecutar Stryker para validación de pruebas de mutación
+      - name: 'Run Stryker Mutator'
+        run: |
+          dotnet tool restore
+          dotnet stryker
+
+      # Paso 9: Publicar el proyecto (solo si los pasos anteriores pasan)
+      - name: 'Publish project'
+        run: dotnet publish --configuration Release --output ./output
+
+      # Paso 10: Subir el artefacto
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v3
+        with:
+          name: function-app-package
+          path: './output'
