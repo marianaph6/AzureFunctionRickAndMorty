@@ -36,7 +36,6 @@ namespace FunctionTests
         {
             // Arrange
             var id = 1;
-            var mockTelemetryClient = new Mock<ITelemetryClient>();
             var mockLogger = new Mock<ILogger>();
 
             var mockResponse = new HttpResponseMessage
@@ -49,11 +48,113 @@ namespace FunctionTests
             var httpClient = new HttpClient(mockHandler);
 
             // Act
-            var result = await RickAndMortyFunction.RickAndMortyFunction.Run(new DefaultHttpContext().Request, id, mockLogger.Object, mockTelemetryClient.Object);
+            var result = await RickAndMortyFunction.RickAndMortyFunction.Run(new DefaultHttpContext().Request, id, mockLogger.Object);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
         }
+
+
+        [Fact]
+        public async Task Run_ReturnsBadRequest_WhenApiResponseIsInvalidContent()
+        {
+            // Arrange
+            var id = 1;
+            var mockLogger = new Mock<ILogger>();
+
+            var mockResponse = new HttpResponseMessage
+            {
+                StatusCode = System.Net.HttpStatusCode.OK,
+                Content = new StringContent("Invalid content")
+            };
+
+            var mockHandler = new MockHttpMessageHandler(mockResponse);
+            var httpClient = new HttpClient(mockHandler);
+
+            // Act
+            var result = await RickAndMortyFunction.RickAndMortyFunction.Run(new DefaultHttpContext().Request, id, mockLogger.Object);
+
+            // Assert
+            var badRequestResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotEqual("{ \"id\":1,\"name\":\"Rick Sanchez\" }", badRequestResult.Value.ToString());
+        }
+
+        [Fact]
+        public async Task Run_ReturnsBadRequest_WhenCharacterNotFound()
+        {
+            // Arrange
+            var id = 999; // Invalid character ID that doesn't exist
+            var mockLogger = new Mock<ILogger>();
+
+            var mockResponse = new HttpResponseMessage
+            {
+                StatusCode = System.Net.HttpStatusCode.NotFound,
+                Content = new StringContent("Character not found")
+            };
+
+            var mockHandler = new MockHttpMessageHandler(mockResponse);
+            var httpClient = new HttpClient(mockHandler);
+
+            // Act
+            var result = await RickAndMortyFunction.RickAndMortyFunction.Run(new DefaultHttpContext().Request, id, mockLogger.Object);
+
+            // Assert
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("Error fetching character info.", badRequestResult.Value);
+        }
+
+
+        [Fact]
+        public async Task Run_ReturnsBadRequest_WhenApiCallFails()
+        {
+            // Arrange
+            var id = 999; // Un ID que cause error
+            var mockLogger = new Mock<ILogger>();
+
+            var mockResponse = new HttpResponseMessage
+            {
+                StatusCode = System.Net.HttpStatusCode.NotFound,
+                Content = new StringContent("Character not found")
+            };
+
+            var mockHandler = new MockHttpMessageHandler(mockResponse);
+            var httpClient = new HttpClient(mockHandler);
+
+            // Act
+            var result = await RickAndMortyFunction.RickAndMortyFunction.Run(new DefaultHttpContext().Request, id, mockLogger.Object);
+
+            // Assert
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("Error fetching character info.", badRequestResult.Value);
+        }
+
+        [Fact]
+        public async Task Run_ReturnsBadRequest_WhenApiResponseIsInvalid()
+        {
+            // Arrange
+            var id = 1;
+            var mockLogger = new Mock<ILogger>();
+
+            var mockResponse = new HttpResponseMessage
+            {
+                StatusCode = System.Net.HttpStatusCode.OK,
+                Content = new StringContent("Invalid content")
+            };
+
+            var mockHandler = new MockHttpMessageHandler(mockResponse);
+            var httpClient = new HttpClient(mockHandler);
+
+            // Act
+            var result = await RickAndMortyFunction.RickAndMortyFunction.Run(new DefaultHttpContext().Request, id, mockLogger.Object);
+
+            // Assert
+            var badRequestResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotEqual("{ \"id\":1,\"name\":\"Rick Sanchez\"...}", badRequestResult.Value.ToString());
+        }
+
+        // Eliminamos las pruebas relacionadas con TelemetryClient ya que no es necesario en esta versión
+
+
 
     }
 }
