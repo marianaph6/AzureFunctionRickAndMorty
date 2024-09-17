@@ -1,4 +1,4 @@
-name: Build and deploy .NET Core Function App to Azure Function App - IntegracionContinuaFunction 
+name: Build and deploy Cobertura
 
 on:
   push:
@@ -38,7 +38,7 @@ jobs:
       # Paso 5: Ejecutar pruebas unitarias y generar reporte de cobertura
       - name: 'Run Unit Tests and Generate Coverage Report'
         run: |
-          dotnet test --no-build --configuration Release \
+          dotnet test ./src/IntegracionContinuaFunction.sln --no-build --configuration Release \
             /p:CollectCoverage=true \
             /p:CoverletOutputFormat=cobertura \
             /p:CoverletOutput=./coverage/
