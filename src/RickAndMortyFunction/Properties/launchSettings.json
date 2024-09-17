@@ -2,8 +2,13 @@
   "profiles": {
     "RickAndMortyGet": {
       "commandName": "Project",
-      "commandLineArgs": "--port 7270",
-      "launchBrowser": false
+      "commandLineArgs": "--port 7270"
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
+      "httpPort": 34444,
+      "useSSL": false
     }
   }
 }
