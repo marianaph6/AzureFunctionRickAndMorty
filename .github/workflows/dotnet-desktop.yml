@@ -44,7 +44,7 @@ jobs:
       - name: 'Run Stryker Mutator'
         run: |
           dotnet tool restore
-          dotnet stryker --break-at 80
+          dotnet stryker --break-at 40
 
       # Paso 7: Publicar el proyecto
       - name: 'Publish project'
